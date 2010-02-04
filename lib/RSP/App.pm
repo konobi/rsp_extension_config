@@ -14,12 +14,26 @@ sub _build_config {
 sub main {
     my ($self) = @_;
 
-    for my $ext (@{ $self->config->extensions }){
+    my @extension_stack = @{ $self->config->available_extensions };
+    my $unable_to_comply = {};
+
+    while(my $ext = shift(@extension_stack)){
         my $class = "RSP::Extension::$ext";
         Class::MOP::load_class($class);
 
-        if($class->does('RSP::Role::GlobalConfigManipulation')){
-            $class->apply_global_config_changes( $self->config ); 
+        if($class->does('RSP::Role::AppMutation')){
+            warn "Attempting to apply mutations on $ext\n";
+            if($class->can_apply_mutations($self->config)){
+                $class->apply_mutations($self->config);
+            } else {
+                push(@extension_stack, $ext);
+                my $tries = ++$unable_to_comply->{$class};
+                if($unable_to_comply > scalar(@extension_stack)){
+                    die "Unable to apply extension mutations";
+                }
+            }
+        } else {
+            warn "$ext does not do AppMutation";
         }
     }
 
@@ -31,17 +45,7 @@ sub app {
     
     my $host_obj = $self->config->host('foo');
 
-    for my $ext (@{ $host_obj->extensions || [] }){
-        my $class = "RSP::Extension::$ext";
-        Class::MOP::load_class($class);
-
-        if($class->does('RSP::Role::HostConfigManipulation')){
-            $class->apply_host_config_changes( $host_obj );
-        }
-    }
-
     print "Host count is: ".$host_obj->host_extension_count."\n";
-
 }
 
 1;

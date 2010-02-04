@@ -1,9 +1,11 @@
 package RSP::Extension::Basic;
 
 use Moose;
-with qw(RSP::Role::GlobalConfigManipulation);
+with qw(RSP::Role::AppMutation);
 
-sub apply_global_config_changes {
+sub can_apply_mutations { return 1; }
+
+sub apply_mutations {
     my ($class, $config_obj) = @_;
 
     my $config_class = blessed($config_obj);
